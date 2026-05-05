@@ -1,0 +1,48 @@
+#!/bin/bash
+# Restore latest restic backup to /tmp/megakuponi-restore/
+# Run as: sudo {{ app_scripts_dir }}/restore.sh
+set -euo pipefail
+
+RESTORE_DIR=/tmp/megakuponi-restore
+REPO="{{ restic_repo }}"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --from-production) REPO="{{ restic_repo_base }}/production" ;;
+        *) echo "Unknown flag: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+set -a
+source {{ restic_config_dir }}/env
+set +a
+
+echo "=== Restoring latest backup ==="
+echo "Repository: $REPO"
+echo "Target:     $RESTORE_DIR"
+echo
+
+rm -rf "$RESTORE_DIR"
+RESTIC_REPOSITORY="$REPO" restic restore latest --target "$RESTORE_DIR"
+
+# Make restore dir readable by postgres so pg_restore works without sudo
+chmod -R o+rX "$RESTORE_DIR"
+
+echo
+echo "=== Restore complete! ==="
+echo
+echo "Database dump:  $RESTORE_DIR/tmp/db.dump"
+echo "Resources:      $RESTORE_DIR{{ app_resources_dir }}"
+echo
+echo "To restore the database:"
+echo "  sudo -u postgres pg_restore --clean -d {{ postgres_db }} $RESTORE_DIR/tmp/db.dump"
+echo
+echo "To restore resources:"
+echo "  rsync -a --delete $RESTORE_DIR{{ app_resources_dir }}/ {{ app_resources_dir }}/"
+echo
+echo "To clean up afterwards:"
+echo "  rm -rf $RESTORE_DIR"
+echo
+echo "After restoring the database, re-apply ana's write permissions:"
+echo "  sudo {{ app_scripts_dir }}/grant-db-permissions.sh"

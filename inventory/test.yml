@@ -1,0 +1,4 @@
+all:
+  hosts:
+    megakuponi-test:
+      ansible_host: YOUR_TEST_SERVER_IP

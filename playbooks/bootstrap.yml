@@ -1,0 +1,120 @@
+---
+# Run this ONCE after the first ansible-playbook site.yml on a fresh server.
+#
+# Fresh setup (DNS already pointing to new server):
+#   ansible-playbook playbooks/bootstrap.yml --ask-vault-pass
+#
+# Migration from old server (DNS still pointing to old server):
+#   ansible-playbook playbooks/bootstrap.yml --ask-vault-pass -e restic_repo=<production-repo>
+#   SSL certificates are restored from the backup — no DNS needed.
+#   Switch DNS after verifying the new server works.
+
+- name: Bootstrap fresh server
+  hosts: all
+  become: true
+
+  vars:
+    all_certbot_domains: >-
+      {{
+        (nginx_active_domains + nginx_disabled_domains)
+        | map('regex_replace', '^(.*)$', '-d \1 -d www.\1')
+        | join(' ')
+      }}
+
+  tasks:
+
+    # -------------------------------------------------------------------------
+    # 1. Clone source repositories
+    # -------------------------------------------------------------------------
+
+    - name: Clone backend repo
+      git:
+        repo: "{{ app_backend_repo }}"
+        dest: "{{ app_backend_dir }}"
+        version: main
+        key_file: "{{ deploy_keys_dir }}/id-dev"
+        accept_hostkey: true
+      become_user: "{{ ana_user }}"
+
+    - name: Clone admin repo
+      git:
+        repo: "{{ app_admin_repo }}"
+        dest: "{{ app_admin_dir }}"
+        version: main
+        key_file: "{{ deploy_keys_dir }}/id-dev-admin"
+        accept_hostkey: true
+      become_user: "{{ ana_user }}"
+
+    # -------------------------------------------------------------------------
+    # 2. Restore from backup (database, resources, and SSL certificates)
+    #    Restoring /etc/letsencrypt from backup means certbot is not needed
+    #    during migration — the existing valid certs are already there.
+    # -------------------------------------------------------------------------
+
+    - name: Create restore temp directory
+      file:
+        path: /tmp/restic-restore
+        state: directory
+        mode: "0700"
+
+    - name: Restore database dump from backup
+      command: >
+        restic restore latest
+        --target /tmp/restic-restore
+        --include /tmp/db.dump
+      environment:
+        RESTIC_REPOSITORY: "{{ restic_repo }}"
+        AWS_ACCESS_KEY_ID: "{{ vault_restic_aws_access_key }}"
+        AWS_SECRET_ACCESS_KEY: "{{ vault_restic_aws_secret_key }}"
+        RESTIC_PASSWORD: "{{ vault_restic_password }}"
+
+    - name: Restore database dump into PostgreSQL
+      command: pg_restore -d {{ postgres_db }} /tmp/restic-restore/tmp/db.dump
+      become_user: postgres
+
+    - name: Clean up restore temp directory
+      file:
+        path: /tmp/restic-restore
+        state: absent
+
+    - name: Restore resources and SSL certificates from backup
+      command: >
+        restic restore latest
+        --target /
+        --include {{ app_resources_dir }}
+        --include /etc/letsencrypt
+      environment:
+        RESTIC_REPOSITORY: "{{ restic_repo }}"
+        AWS_ACCESS_KEY_ID: "{{ vault_restic_aws_access_key }}"
+        AWS_SECRET_ACCESS_KEY: "{{ vault_restic_aws_secret_key }}"
+        RESTIC_PASSWORD: "{{ vault_restic_password }}"
+
+    - name: Fix ownership on resources directory
+      file:
+        path: "{{ app_resources_dir }}"
+        owner: "{{ runner_user }}"
+        group: "{{ editors_group }}"
+        recurse: true
+
+    # -------------------------------------------------------------------------
+    # 3. Obtain SSL certificates (only if not restored from backup)
+    # -------------------------------------------------------------------------
+
+    - name: Check if certificate was restored from backup
+      stat:
+        path: "/etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem"
+      register: cert_stat
+
+    - name: Obtain Let's Encrypt certificates (fresh setup only)
+      command: >
+        certbot --nginx --non-interactive --agree-tos
+        --email {{ admin_email }}
+        {{ all_certbot_domains }}
+      when: not cert_stat.stat.exists
+
+    # -------------------------------------------------------------------------
+    # 4. Build and deploy the applications
+    # -------------------------------------------------------------------------
+
+    - name: Build and deploy backend and admin panel
+      command: "{{ app_scripts_dir }}/update.sh --admin --skip-smoke-test"

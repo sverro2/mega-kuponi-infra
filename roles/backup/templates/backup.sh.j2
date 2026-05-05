@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+
+set -a
+source {{ restic_config_dir }}/env
+set +a
+
+notify_failure() {
+    local subject="$1"
+    local body="$2"
+    curl -s -X POST https://api.mailjet.com/v3.1/send \
+        -u "{{ vault_mailjet_key }}:{{ vault_mailjet_secret }}" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"Messages\": [{
+                \"From\": {\"Email\": \"backup@{{ nginx_admin_domain }}\", \"Name\": \"Megakuponi Backup\"},
+                \"To\": [{\"Email\": \"{{ admin_email }}\"}],
+                \"Subject\": \"[megakuponi] $subject\",
+                \"TextPart\": \"$body\"
+            }]
+        }" > /dev/null || true
+}
+
+run_backup() {
+    echo "Creating postgres dump..."
+    sudo -u postgres pg_dump -Fc {{ postgres_db }} > /tmp/db.dump
+
+    echo "Running restic backup..."
+    restic backup \
+        {{ app_resources_dir }} \
+        /etc/letsencrypt \
+        /tmp/db.dump
+
+    rm -f /tmp/db.dump
+
+    echo "Pruning old backups..."
+    restic forget \
+        --keep-hourly 24 \
+        --keep-daily 7 \
+        --keep-weekly 12 \
+        --prune
+}
+
+run_verify() {
+    echo "Verifying backup integrity..."
+    restic check
+}
+
+if ! run_backup; then
+    notify_failure "Backup FAILED" "The daily backup failed on $(date). Check systemd logs: journalctl -u megakuponi-backup"
+    exit 1
+fi
+
+if ! run_verify; then
+    notify_failure "Backup verification FAILED" "The backup completed but integrity check failed on $(date). Check systemd logs: journalctl -u megakuponi-backup"
+    exit 1
+fi
+
+echo "Backup and verification complete."

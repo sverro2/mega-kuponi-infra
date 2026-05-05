@@ -1,0 +1,17 @@
+[default.databases.sqlx]
+url = "postgresql://postgres:example@localhost:5432/postgres"
+
+[default.databases.redis_pool]
+url = "redis://localhost:6379"
+
+[default]
+mailjet_key = "stub_key"
+mailjet_secret = "stub_secret"
+host_uri = "https://www.megakuponi.hr"
+
+[global]
+
+[debug]
+address = "0.0.0.0"
+
+[release]

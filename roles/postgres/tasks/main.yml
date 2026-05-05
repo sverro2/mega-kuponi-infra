@@ -1,0 +1,55 @@
+---
+- name: Install PostgreSQL
+  apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+      - python3-psycopg2
+    state: present
+
+- name: Enable and start PostgreSQL
+  systemd:
+    name: postgresql
+    enabled: true
+    state: started
+
+- name: Create megakuponi database
+  become_user: postgres
+  postgresql_db:
+    name: "{{ postgres_db }}"
+    encoding: UTF8
+    state: present
+
+- name: Create application user (dev)
+  become_user: postgres
+  postgresql_user:
+    db: "{{ postgres_db }}"
+    name: "{{ postgres_app_user }}"
+    password: "{{ vault_postgres_app_password }}"
+    priv: "ALL"
+    state: present
+
+- name: Create content user (ana) - read-only
+  become_user: postgres
+  postgresql_user:
+    db: "{{ postgres_db }}"
+    name: "{{ postgres_content_user }}"
+    password: "{{ vault_postgres_ana_password }}"
+    state: present
+
+- name: Grant SELECT on all tables to ana
+  become_user: postgres
+  postgresql_privs:
+    db: "{{ postgres_db }}"
+    role: "{{ postgres_content_user }}"
+    objs: ALL_IN_SCHEMA
+    privs: SELECT
+    state: present
+
+- name: Grant SELECT on future tables to ana (alter default privileges)
+  become_user: postgres
+  postgresql_query:
+    db: "{{ postgres_db }}"
+    query: >
+      ALTER DEFAULT PRIVILEGES FOR ROLE {{ postgres_app_user }}
+      IN SCHEMA public GRANT SELECT ON TABLES TO {{ postgres_content_user }};

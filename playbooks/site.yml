@@ -1,0 +1,15 @@
+---
+- name: Full server setup
+  hosts: all
+  become: true
+  roles:
+    - common      # users, SSH hardening, deploy keys, base packages
+    - firewall     # ufw (ssh:6699, 80, 443)
+    - fail2ban     # brute-force protection
+    - redis        # local Redis with password auth
+    - postgres     # PostgreSQL + megakuponi DB + dev/ana users
+    - app          # directory layout, Rust toolchain, Node, deploy scripts, sudoers
+    - nginx        # nginx config + vhosts
+    - certbot      # Let's Encrypt renewal timer
+    - systemd      # mega-kuponi + mega-kuponi-admin services
+    - backup       # restic config + daily timer

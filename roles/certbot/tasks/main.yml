@@ -1,0 +1,10 @@
+---
+# Certbot is installed via common role (python3-certbot-nginx)
+# Certificates are obtained per-domain after nginx is configured.
+# Auto-renewal is handled by the certbot systemd timer installed with the package.
+
+- name: Ensure certbot renewal timer is enabled
+  systemd:
+    name: certbot.timer
+    enabled: true
+    state: started

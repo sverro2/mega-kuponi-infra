@@ -1,0 +1,14 @@
+---
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: restart mega-kuponi
+  systemd:
+    name: mega-kuponi
+    state: restarted
+
+- name: restart mega-kuponi-admin
+  systemd:
+    name: mega-kuponi-admin
+    state: restarted

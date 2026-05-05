@@ -1,0 +1,34 @@
+---
+- name: Deploy mega-kuponi backend service
+  template:
+    src: mega-kuponi.service.j2
+    dest: /etc/systemd/system/mega-kuponi.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart mega-kuponi
+
+- name: Deploy mega-kuponi-admin service
+  template:
+    src: mega-kuponi-admin.service.j2
+    dest: /etc/systemd/system/mega-kuponi-admin.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart mega-kuponi-admin
+
+- name: Enable and start mega-kuponi
+  systemd:
+    name: mega-kuponi
+    enabled: true
+    state: started
+
+- name: Enable and start mega-kuponi-admin
+  systemd:
+    name: mega-kuponi-admin
+    enabled: true
+    state: started

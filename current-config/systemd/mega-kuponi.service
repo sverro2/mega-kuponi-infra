@@ -1,0 +1,25 @@
+[Unit]
+Description=Audiospire webserver for Mega-Kuponi
+
+Wants=network.target
+After=syslog.target network-online.target
+
+[Service]
+Type=simple
+ExecStart=/var/www/application/mega-kuponi
+WorkingDirectory=/var/www/application
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+User=runner
+Environment=ROCKET_DATABASES={sqlx={url="postgresql://dev:ThisIsASuperSecretDevP@ssWORD!!!!@localhost:5432/megakuponi",min_connections=32,max_connections=64,connect_timeout=8},redis_pool={url="redis://:RAwot6PqXdK7Dm64rz05itzm8t93w3IEC9j8HiufsKiDG9E25YzmaplB6uXcBNDJ1Pa7nAErAGQsEAx60T7L9sKRmbIM4PmuJ39@localhost:6379"}}
+Environment=ROCKET_MAILJET_KEY=b954047f66906ba574e0c02bd0e6db38
+Environment=ROCKET_MAILJET_SECRET=b966bd3a1521b7ea744330003dc47b6a
+Environment=ROCKET_SECRET_KEY=aIECpybyCExIZq/cdCaa+iWY1/X1V/tE1TmWY0hDOCo=
+Environment=ROCKET_VERIFICATION_SECRET=ebb0164a260e891f8e6231fc17f2a13141bc7e185bb339c52fbe308d6ea01a45
+Environment=ROCKET_ADMIN_URI=https://www.animamedia.nl
+Environment=ROCKET_RESOURCE_PATH=/var/www/resources/
+Environment=ROCKET_DOPPIO_API_KEY=e02439904302d34599e8001d
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=Audiospire proces for Mega-Kuponi
+
+Wants=network.target
+After=syslog.target network-online.target
+
+[Service]
+Type=simple
+ExecStart=/snap/bin/node build
+WorkingDirectory=/var/www/admin-app
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+User=runner
+
+[Install]
+WantedBy=multi-user.target

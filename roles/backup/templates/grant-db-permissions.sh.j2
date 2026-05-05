@@ -1,0 +1,22 @@
+#!/bin/bash
+# Grant database privileges to {{ postgres_content_user }}.
+# Run this after restoring the database: sudo {{ app_scripts_dir }}/grant-db-permissions.sh
+set -euo pipefail
+
+sudo -u postgres psql -d {{ postgres_db }} << 'EOF'
+-- Read access on all current tables
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ postgres_content_user }};
+
+-- Write access on specific tables
+GRANT INSERT, UPDATE, DELETE ON
+    {{ postgres_content_user_writable_tables | join(',\n    ') }}
+TO {{ postgres_content_user }};
+
+-- Ensure future tables created by {{ postgres_app_user }} also get SELECT for {{ postgres_content_user }}
+ALTER DEFAULT PRIVILEGES FOR ROLE {{ postgres_app_user }}
+    IN SCHEMA public GRANT SELECT ON TABLES TO {{ postgres_content_user }};
+EOF
+
+echo "Privileges granted to {{ postgres_content_user }}:"
+echo "  SELECT on all tables"
+echo "  INSERT, UPDATE, DELETE on: {{ postgres_content_user_writable_tables | join(', ') }}"

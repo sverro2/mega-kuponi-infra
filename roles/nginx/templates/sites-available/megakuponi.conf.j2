@@ -1,0 +1,76 @@
+map $host $backend {
+    default http://127.0.0.1:{{ nginx_backend_port }};
+    www.{{ nginx_admin_domain }} http://127.0.0.1:{{ nginx_admin_port }};
+}
+
+# Active domains - HTTPS
+server {
+    root /var/www;
+
+    server_name {% for domain in nginx_active_domains %}www.{{ domain }} {% endfor %};
+
+
+    limit_req_status 429;
+
+    if ($host !~* ^www\.) {
+        return 301 https://www.$host$request_uri;
+    }
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    proxy_set_header X-Real-IP       $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host            $host;
+
+    location /resources/ {
+        expires 1y;
+        add_header Cache-Control "public";
+        try_files $uri $uri/ =404;
+    }
+
+    location /admin-api/ {
+        proxy_pass http://127.0.0.1:{{ nginx_backend_port }};
+    }
+
+    location / {
+        limit_req zone=general_limit burst=20 nodelay;
+        proxy_pass $backend;
+    }
+
+    listen [::]:443 ssl ipv6only=on http2;
+    listen 443 ssl http2;
+    ssl_certificate     /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+# Disabled domains - return 404
+server {
+    server_name {% for domain in nginx_disabled_domains %}{{ domain }} www.{{ domain }} {% endfor %};
+
+
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+
+    ssl_certificate     /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+    return 404;
+}
+
+# HTTP -> HTTPS redirect for all domains
+server {
+    server_name {% for domain in nginx_active_domains + nginx_disabled_domains %}{{ domain }} www.{{ domain }} {% endfor %};
+
+
+    listen 80;
+    listen [::]:80;
+
+    return 301 https://$host$request_uri;
+}

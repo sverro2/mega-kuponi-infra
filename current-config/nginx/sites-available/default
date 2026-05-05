@@ -1,0 +1,106 @@
+# test linode server
+# server {
+# 	root /var/www;
+
+#     server_name http://139.162.148.36;
+
+# 	# store ip adress of user
+# 	proxy_set_header        X-Real-IP       $remote_addr;
+# 	proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+
+# 	# set host
+# 	proxy_set_header Host $host;
+
+# 	location /resources/ {
+# 		# First attempt to serve request as file, then
+# 		# as directory, then fall back to displaying a 404.
+# 		expires 1y;
+# 		add_header Cache-Control "public";
+# 		try_files $uri $uri/ =404;
+# 	}
+
+# 	location / {
+# 		proxy_pass http://127.0.0.1:8000;
+# 	}
+# }
+
+map $host $backend {
+    default http://127.0.0.1:8000;
+    www.animamedia.nl http://127.0.0.1:3000;        # this domain opens the admin interface
+}
+
+server {
+	root /var/www;
+
+    server_name www.megacupones.cl www.megacupones.co www.megacupones.com.mx www.megacupones.pe www.megakuponi.hr www.megakuponi.rs www.megakuponi.si www.megakupony.com.ua www.megakupony.kz www.megacupones.uy www.megakuponi.ba www.animamedia.nl www.megacupones.ar; # managed by Certbot
+
+    limit_req_status 429;
+
+    # if http and starts with www
+    if ($host !~* ^www\.) {
+         return 301 https://www.$host$request_uri;
+    }
+
+	# store ip adress of user
+	proxy_set_header        X-Real-IP       $remote_addr;
+	proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+
+	# set host
+	proxy_set_header Host $host;
+
+	location /resources/ {
+		# First attempt to serve request as file, then
+		# as directory, then fall back to displaying a 404.
+		expires 1y;
+		add_header Cache-Control "public";
+		try_files $uri $uri/ =404;
+	}
+
+    location /admin-api/ {
+        proxy_pass http://127.0.0.1:8000;
+    }
+
+	location / {
+	    limit_req zone=general_limit burst=20 nodelay;
+		proxy_pass $backend;
+	}
+
+    listen [::]:443 ssl ipv6only=on http2; # managed by Certbot
+    listen 443 ssl http2; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/animamedia.nl/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/animamedia.nl/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+# some websites are disabled
+server {
+    server_name
+        megacupones.com.py
+        www.megacupones.com.py
+        megacupones.com.bo
+        www.megacupones.com.bo;
+
+
+    listen 443 ssl http2;       # managed by Certbot
+    listen [::]:443 ssl http2;  # managed by Certbot
+
+    ssl_certificate /etc/letsencrypt/live/animamedia.nl/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/animamedia.nl/privkey.pem; # managed by Certbot
+
+    include     /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;       # managed by Certbot
+
+    return 404 https://$host$request_uri;
+}
+
+
+server {
+    return 301 https://$host$request_uri;
+
+    server_name megacupones.cl www.megacupones.cl megacupones.co www.megacupones.co megacupones.com.mx www.megacupones.com.mx megacupones.pe www.megacupones.pe megakuponi.hr www.megakuponi.hr megakuponi.rs www.megakuponi.rs megakuponi.si www.megakuponi.si megakupony.com.ua www.megakupony.com.ua   megakupony.kz www.megakupony.kz animamedia.nl www.animamedia.nl megakuponi.ba www.megakuponi.ba megacupones.uy www.megacupones.uy megacupones.ar www.megacupones.ar;
+
+    listen 80;
+    listen [::]:80;
+    return 404; # managed by Certbot
+}

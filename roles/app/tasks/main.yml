@@ -1,0 +1,82 @@
+---
+- name: Create required directories
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ app_deploy_dir }}",       owner: root,            group: "{{ runner_user }}", mode: "0755" }
+    - { path: "{{ app_admin_deploy_dir }}", owner: root,            group: "{{ runner_user }}", mode: "0755" }
+    - { path: "{{ app_resources_dir }}",    owner: "{{ runner_user }}", group: "{{ editors_group }}", mode: "0775" }
+    - { path: "{{ app_source_dir }}",       owner: "{{ ana_user }}", group: "{{ ana_user }}",   mode: "0755" }
+    - { path: "{{ app_admin_dir }}",        owner: "{{ ana_user }}", group: "{{ ana_user }}",   mode: "0755" }
+    - { path: "{{ app_scripts_dir }}",      owner: root,            group: root,               mode: "0755" }
+
+- name: Install Rust toolchain (system-wide via rustup)
+  shell: >
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+  args:
+    creates: /opt/cargo/bin/rustc
+  environment:
+    CARGO_HOME: /opt/cargo
+    RUSTUP_HOME: /opt/rustup
+
+- name: Install Node.js via snap
+  community.general.snap:
+    name: node
+    classic: true
+    state: present
+
+- name: Deploy update script
+  template:
+    src: update.sh.j2
+    dest: "{{ app_scripts_dir }}/update.sh"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy FTL validation scripts
+  copy:
+    src: ftl-validation/
+    dest: "{{ app_scripts_dir }}/ftl-validation/"
+    owner: root
+    group: root
+    mode: preserve
+
+- name: Ensure FTL validation scripts are executable
+  file:
+    path: "{{ item }}"
+    mode: "0755"
+  loop:
+    - "{{ app_scripts_dir }}/ftl-validation/run.sh"
+    - "{{ app_scripts_dir }}/ftl-validation/test-quick.sh"
+
+- name: Deploy Rocket.toml to backend working directory
+  template:
+    src: Rocket.toml.j2
+    dest: "{{ app_deploy_dir }}/Rocket.toml"
+    owner: root
+    group: "{{ runner_user }}"
+    mode: "0644"
+
+- name: Deploy .env to admin source directory (needed at build time)
+  template:
+    src: admin.env.j2
+    dest: "{{ app_admin_dir }}/.env"
+    owner: "{{ ana_user }}"
+    group: "{{ ana_user }}"
+    mode: "0644"
+
+- name: Allow any user to run deploy scripts via sudo without password
+  copy:
+    content: |
+      ALL ALL=(root) NOPASSWD: {{ app_scripts_dir }}/update.sh
+      ALL ALL=(root) NOPASSWD: {{ app_scripts_dir }}/restore.sh
+      ALL ALL=(root) NOPASSWD: {{ app_scripts_dir }}/grant-db-permissions.sh
+    dest: /etc/sudoers.d/megakuponi-deploy
+    owner: root
+    group: root
+    mode: "0440"
+    validate: visudo -cf %s

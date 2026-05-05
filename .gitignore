@@ -1,0 +1,7 @@
+*.retry
+.vault_pass
+*.secret
+
+# Current config reference folder - secrets excluded from git
+current-config/keys/
+current-config/etc restic/

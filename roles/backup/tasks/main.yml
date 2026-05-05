@@ -1,0 +1,84 @@
+---
+- name: Create restic config directory
+  file:
+    path: "{{ restic_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy restic env file (S3 credentials)
+  template:
+    src: restic-env.j2
+    dest: "{{ restic_config_dir }}/env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Deploy restic password file
+  copy:
+    content: "{{ vault_restic_password }}"
+    dest: "{{ restic_config_dir }}/password"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Initialize restic repository (skips if already initialized)
+  command: restic init
+  environment:
+    RESTIC_REPOSITORY: "{{ restic_repo }}"
+    AWS_ACCESS_KEY_ID: "{{ vault_restic_aws_access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ vault_restic_aws_secret_key }}"
+    RESTIC_PASSWORD_FILE: "{{ restic_config_dir }}/password"
+  register: restic_init
+  failed_when:
+    - restic_init.rc != 0
+    - "'already initialized' not in restic_init.stderr"
+
+- name: Deploy backup script
+  template:
+    src: backup.sh.j2
+    dest: /opt/megakuponi/scripts/backup.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy restore script
+  template:
+    src: restore.sh.j2
+    dest: /opt/megakuponi/scripts/restore.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy grant-db-permissions script
+  template:
+    src: grant-db-permissions.sh.j2
+    dest: /opt/megakuponi/scripts/grant-db-permissions.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy backup systemd service
+  template:
+    src: megakuponi-backup.service.j2
+    dest: /etc/systemd/system/megakuponi-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+
+- name: Deploy backup systemd timer (daily at 03:00)
+  template:
+    src: megakuponi-backup.timer.j2
+    dest: /etc/systemd/system/megakuponi-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+
+- name: Enable and start backup timer
+  systemd:
+    name: megakuponi-backup.timer
+    enabled: true
+    state: started

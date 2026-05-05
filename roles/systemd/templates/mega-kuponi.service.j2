@@ -1,0 +1,25 @@
+[Unit]
+Description=Mega-Kuponi backend (Rust/Rocket)
+Wants=network.target
+After=syslog.target network-online.target postgresql.service
+
+[Service]
+Type=simple
+ExecStart={{ app_deploy_dir }}/mega-kuponi
+WorkingDirectory={{ app_deploy_dir }}
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+User={{ runner_user }}
+
+Environment=ROCKET_DATABASES={sqlx={url="postgresql://{{ postgres_app_user }}:{{ vault_postgres_app_password }}@localhost:5432/{{ postgres_db }}",min_connections=32,max_connections=64,connect_timeout=8},redis_pool={url="redis://:{{ vault_redis_password }}@localhost:6379"}}
+Environment=ROCKET_MAILJET_KEY={{ vault_mailjet_key }}
+Environment=ROCKET_MAILJET_SECRET={{ vault_mailjet_secret }}
+Environment=ROCKET_SECRET_KEY={{ vault_rocket_secret_key }}
+Environment=ROCKET_VERIFICATION_SECRET={{ vault_rocket_verification_secret }}
+Environment=ROCKET_ADMIN_URI=https://www.{{ nginx_admin_domain }}
+Environment=ROCKET_RESOURCE_PATH={{ app_resources_dir }}/
+Environment=ROCKET_DOPPIO_API_KEY={{ vault_doppio_api_key }}
+
+[Install]
+WantedBy=multi-user.target

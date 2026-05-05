@@ -1,0 +1,116 @@
+#!/bin/bash
+# Deploy Mega-Kuponi. Run as: sudo {{ app_scripts_dir }}/update.sh [--admin] [--skip-smoke-test]
+set -euo pipefail
+
+DEPLOY_ADMIN=false
+RUN_SMOKE_TEST=true
+DEBUG=false
+BRANCH=main
+ADMIN_BRANCH=main
+
+usage() {
+    cat << EOF
+Usage: sudo $(basename "$0") [options]
+
+Options:
+  --admin                Also deploy the admin panel
+  --branch <branch>      Backend git branch to deploy (default: main)
+  --admin-branch <branch> Admin git branch to deploy (default: main)
+  --debug                Build backend in debug mode instead of release
+  --skip-smoke-test      Skip FTL route validation after deploy
+  --help                 Show this help message
+
+Examples:
+  sudo $(basename "$0")
+  sudo $(basename "$0") --admin
+  sudo $(basename "$0") --branch feature/my-feature --admin --admin-branch main
+  sudo $(basename "$0") --debug --skip-smoke-test
+EOF
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --admin)           DEPLOY_ADMIN=true ;;
+        --skip-smoke-test) RUN_SMOKE_TEST=false ;;
+        --debug)           DEBUG=true ;;
+        --branch)          BRANCH="$2"; shift ;;
+        --admin-branch)    ADMIN_BRANCH="$2"; shift ;;
+        --help)            usage ;;
+        *) echo "Unknown flag: $1"; echo; usage ;;
+    esac
+    shift
+done
+
+# =============================================================================
+# Backend (Rust)
+# =============================================================================
+echo "=== Deploying backend ==="
+echo "NOTICE: on any error the running service is left untouched."
+echo
+
+export GIT_SSH_COMMAND="ssh -i {{ deploy_keys_dir }}/id-dev -o StrictHostKeyChecking=no"
+export PATH="/opt/cargo/bin:$PATH"
+
+cd {{ app_backend_dir }}
+git fetch
+git checkout "$BRANCH"
+git pull origin "$BRANCH"
+
+if [ "$DEBUG" = true ]; then
+    echo "(debug build)"
+    cargo build
+    BINARY=target/debug/mega-kuponi
+else
+    cargo build --release
+    BINARY=target/release/mega-kuponi
+fi
+
+systemctl stop mega-kuponi.service
+
+rsync -a --delete templates/ {{ app_deploy_dir }}/templates/
+rsync -a --delete static/images/vectors/ {{ app_resources_dir }}/images/vectors/
+cp "$BINARY" {{ app_deploy_dir }}/mega-kuponi
+
+systemctl start mega-kuponi.service
+echo "=== Backend deploy finished! ==="
+
+# =============================================================================
+# Admin panel (SvelteKit) - optional
+# =============================================================================
+if [ "$DEPLOY_ADMIN" = true ]; then
+    echo
+    echo "=== Deploying admin panel ==="
+
+    export GIT_SSH_COMMAND="ssh -i {{ deploy_keys_dir }}/id-dev-admin -o StrictHostKeyChecking=no"
+
+    cd {{ app_admin_dir }}
+    git fetch
+    git checkout "$ADMIN_BRANCH"
+    git pull origin "$ADMIN_BRANCH"
+
+    npm install
+    npm run build
+
+    systemctl stop mega-kuponi-admin.service
+
+    cp -R build/ {{ app_admin_deploy_dir }}/build
+    cp package.json {{ app_admin_deploy_dir }}/package.json
+    cp package-lock.json {{ app_admin_deploy_dir }}/package-lock.json
+
+    cd {{ app_admin_deploy_dir }}
+    npm ci --omit dev
+
+    systemctl start mega-kuponi-admin.service
+    echo "=== Admin panel deploy finished! ==="
+fi
+
+# =============================================================================
+# Smoke test - optional
+# =============================================================================
+if [ "$RUN_SMOKE_TEST" = true ]; then
+    echo
+    echo "=== Running smoke test ==="
+    sleep 5
+    {{ app_scripts_dir }}/ftl-validation/run.sh http://localhost:{{ nginx_backend_port }}
+fi

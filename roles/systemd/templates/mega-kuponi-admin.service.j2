@@ -1,0 +1,16 @@
+[Unit]
+Description=Mega-Kuponi admin panel (SvelteKit/Node.js)
+Wants=network.target
+After=syslog.target network-online.target
+
+[Service]
+Type=simple
+ExecStart=/snap/bin/node build
+WorkingDirectory={{ app_admin_deploy_dir }}
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+User={{ runner_user }}
+
+[Install]
+WantedBy=multi-user.target

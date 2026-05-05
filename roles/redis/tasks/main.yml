@@ -1,0 +1,35 @@
+---
+- name: Install Redis
+  apt:
+    name: redis-server
+    state: present
+
+- name: Configure Redis with password auth
+  lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: "^#?requirepass "
+    line: "requirepass {{ vault_redis_password }}"
+    state: present
+  notify: restart redis
+
+- name: Bind Redis to localhost only
+  lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: "^bind "
+    line: "bind 127.0.0.1 ::1"
+    state: present
+  notify: restart redis
+
+- name: Set Redis eviction policy
+  lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: "^#?maxmemory-policy "
+    line: "maxmemory-policy allkeys-lru"
+    state: present
+  notify: restart redis
+
+- name: Enable and start Redis
+  systemd:
+    name: redis-server
+    enabled: true
+    state: started

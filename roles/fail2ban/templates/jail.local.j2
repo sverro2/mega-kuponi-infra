@@ -1,0 +1,25 @@
+[DEFAULT]
+# Whitelist localhost and the server's own IP
+ignoreip = 127.0.0.1/8 ::1 {{ ansible_default_ipv4.address }}
+
+bantime  = 24h
+findtime = 24h
+maxretry = 5
+
+[sshd]
+enabled  = true
+port     = {{ ssh_port }}
+logpath  = %(sshd_log)s
+backend  = %(sshd_backend)s
+
+[nginx-limit-req]
+enabled  = true
+maxretry = 50
+port     = http,https
+logpath  = %(nginx_error_log)s
+
+[nginx-botsearch]
+enabled  = true
+maxretry = 2
+port     = http,https
+logpath  = %(nginx_error_log)s

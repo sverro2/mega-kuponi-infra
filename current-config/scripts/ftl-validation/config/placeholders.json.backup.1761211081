@@ -1,0 +1,114 @@
+{
+  "https://www.megakupony.com.ua": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "temu-vs-aliexpress",
+    "author-id": "1"
+  },
+  "https://www.megakuponi.rs": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "odeca-i-obuca",
+    "blog-article-id": "kada-pada-crni-petak-i-gde-naci-najbolje-popuste",
+    "author-id": "1"
+  },
+  "https://www.megakuponi.hr": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "temu",
+    "category-id": "odjeca-i-obuca",
+    "blog-article-id": "kada-pada-crni-petak-u-hrvatskoj",
+    "author-id": "1"
+  },
+  "https://www.megakuponi.si": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "temu",
+    "category-id": "superge",
+    "blog-article-id": "kdaj-je-crni-petek",
+    "author-id": "1"
+  },
+  "https://www.megakuponi.ba": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "odeca-i-obuca",
+    "blog-article-id": "temu-bih-pracenje-posiljke",
+    "author-id": "1"
+  },
+  "https://www.megacupones.cl": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "monto-minimo-de-compra-temu-chile",
+    "author-id": "1"
+  },
+  "https://www.megacupones.co": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "monto-minimo-de-compra-temu-colombia",
+    "author-id": "1"
+  },
+  "https://www.megacupones.com.mx": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "cuando-es-el-buen-fin",
+    "author-id": "1"
+  },
+  "https://www.megacupones.uy": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "impuestos-en-compras-temu-uruguay",
+    "author-id": "1"
+  },
+  "https://www.megacupones.pe": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "monto-minimo-de-compra-temu-peru",
+    "author-id": "1"
+  },
+  "https://www.megacupones.com.py": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "impuestos-en-temu-paraguay",
+    "author-id": "1"
+  },
+  "https://www.megacupones.com.bo": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "esta-temu-disponible-en-bolivia",
+    "author-id": "1"
+  },
+  "https://www.megacupones.ar": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "monto-minimo-de-compra-temu-argentina",
+    "author-id": "1"
+  },
+  "https://www.megakupony.kz": {
+    "coupon-with-code-id": "sample-code-coupon",
+    "coupon-with-sale-id": "sample-sale-coupon",
+    "shop-id": "amazon",
+    "category-id": "fashion",
+    "blog-article-id": "chto-takoye-kredit-temu-i-kak-poluchit-keshbek",
+    "author-id": "1"
+  }
+}

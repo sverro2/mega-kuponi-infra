@@ -1,0 +1,175 @@
+---
+- name: Update apt cache and upgrade packages
+  apt:
+    update_cache: true
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Install base packages
+  apt:
+    name:
+      - curl
+      - git
+      - unzip
+      - htop
+      - ufw
+      - fail2ban
+      - certbot
+      - python3-certbot-nginx
+      - restic
+      - rsync
+      - unattended-upgrades
+    state: present
+
+- name: Set timezone to UTC
+  timezone:
+    name: UTC
+
+- name: Check if swap file exists
+  stat:
+    path: /swapfile
+  register: swapfile_stat
+
+- name: Create swap file
+  command: fallocate -l {{ swap_size }} /swapfile
+  when: not swapfile_stat.stat.exists
+
+- name: Set swap file permissions
+  file:
+    path: /swapfile
+    mode: "0600"
+  when: not swapfile_stat.stat.exists
+
+- name: Format swap file
+  command: mkswap /swapfile
+  when: not swapfile_stat.stat.exists
+
+- name: Enable swap
+  command: swapon /swapfile
+  when: not swapfile_stat.stat.exists
+
+- name: Add swap to fstab
+  lineinfile:
+    path: /etc/fstab
+    line: '/swapfile none swap sw 0 0'
+    state: present
+
+- name: Create editors group
+  group:
+    name: "{{ editors_group }}"
+    gid: "{{ editors_gid }}"
+    state: present
+
+- name: Create ana group
+  group:
+    name: "{{ ana_user }}"
+    gid: "{{ ana_gid }}"
+    state: present
+
+- name: Create runner group
+  group:
+    name: "{{ runner_user }}"
+    gid: "{{ runner_gid }}"
+    state: present
+
+- name: Create ana user
+  user:
+    name: "{{ ana_user }}"
+    uid: "{{ ana_uid }}"
+    group: "{{ ana_user }}"
+    groups: "sudo,www-data,{{ editors_group }}"
+    shell: /bin/bash
+    create_home: true
+
+- name: Create runner user
+  user:
+    name: "{{ runner_user }}"
+    uid: "{{ runner_uid }}"
+    group: "{{ runner_user }}"
+    groups: "{{ editors_group }}"
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Set root authorized SSH keys
+  authorized_key:
+    user: root
+    state: present
+    key: "{{ item }}"
+    exclusive: true
+  loop: "{{ vault_root_authorized_keys }}"
+
+- name: Harden SSH - disable password auth, set port
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  loop:
+    - { regexp: '^#?Port ', line: "Port {{ ssh_port }}" }
+    - { regexp: '^#?PasswordAuthentication ', line: 'PasswordAuthentication no' }
+    - { regexp: '^#?PermitRootLogin ', line: 'PermitRootLogin prohibit-password' }
+  notify: restart sshd
+
+- name: Create deploy keys directory
+  file:
+    path: "{{ deploy_keys_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy backend SSH key
+  copy:
+    content: "{{ vault_deploy_key_backend }}"
+    dest: "{{ deploy_keys_dir }}/id-dev"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Deploy admin SSH key
+  copy:
+    content: "{{ vault_deploy_key_admin }}"
+    dest: "{{ deploy_keys_dir }}/id-dev-admin"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Configure unattended-upgrades
+  template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure auto-upgrades trigger
+  template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy monthly reboot systemd service
+  template:
+    src: monthly-reboot.service.j2
+    dest: /etc/systemd/system/monthly-reboot.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+
+- name: Deploy monthly reboot systemd timer
+  template:
+    src: monthly-reboot.timer.j2
+    dest: /etc/systemd/system/monthly-reboot.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+
+- name: Manage monthly reboot timer state
+  systemd:
+    name: monthly-reboot.timer
+    enabled: "{{ auto_reboot_enabled }}"
+    state: "{{ 'started' if auto_reboot_enabled else 'stopped' }}"
