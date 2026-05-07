@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deploy Mega-Kuponi. Run as: sudo {{ app_scripts_dir }}/update.sh [--admin] [--skip-smoke-test]
+# Deploy Mega-Kuponi. Run as: sudo deploy [--admin] [--skip-smoke-test]
 set -euo pipefail
 
 DEPLOY_ADMIN=false
@@ -51,6 +51,8 @@ echo
 
 export GIT_SSH_COMMAND="ssh -i {{ deploy_keys_dir }}/id-dev -o StrictHostKeyChecking=no"
 export PATH="/opt/cargo/bin:$PATH"
+export RUSTUP_HOME=/opt/rustup
+export CARGO_HOME=/opt/cargo
 
 cd {{ app_backend_dir }}
 git fetch
@@ -112,5 +114,5 @@ if [ "$RUN_SMOKE_TEST" = true ]; then
     echo
     echo "=== Running smoke test ==="
     sleep 5
-    {{ app_scripts_dir }}/ftl-validation/run.sh http://localhost:{{ nginx_backend_port }}
+    smoke-test http://localhost:{{ nginx_backend_port }}
 fi

@@ -34,11 +34,12 @@
   failed_when:
     - restic_init.rc != 0
     - "'already initialized' not in restic_init.stderr"
+  changed_when: restic_init.rc == 0
 
 - name: Deploy backup script
   template:
     src: backup.sh.j2
-    dest: /opt/megakuponi/scripts/backup.sh
+    dest: /usr/local/bin/backup
     owner: root
     group: root
     mode: "0755"
@@ -46,7 +47,7 @@
 - name: Deploy restore script
   template:
     src: restore.sh.j2
-    dest: /opt/megakuponi/scripts/restore.sh
+    dest: /usr/local/bin/restore
     owner: root
     group: root
     mode: "0755"
@@ -54,7 +55,7 @@
 - name: Deploy grant-db-permissions script
   template:
     src: grant-db-permissions.sh.j2
-    dest: /opt/megakuponi/scripts/grant-db-permissions.sh
+    dest: /usr/local/bin/grant-db-permissions
     owner: root
     group: root
     mode: "0755"

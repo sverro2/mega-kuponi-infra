@@ -19,11 +19,15 @@
       - restic
       - rsync
       - unattended-upgrades
+      - build-essential
+      - libssl-dev
+      - pkg-config
+      - jq
     state: present
 
-- name: Set timezone to UTC
+- name: Set timezone
   timezone:
-    name: UTC
+    name: "{{ server_timezone }}"
 
 - name: Check if swap file exists
   stat:
@@ -51,7 +55,7 @@
 - name: Add swap to fstab
   lineinfile:
     path: /etc/fstab
-    line: '/swapfile none swap sw 0 0'
+    line: "/swapfile none swap sw 0 0"
     state: present
 
 - name: Create editors group
@@ -88,15 +92,21 @@
     group: "{{ runner_user }}"
     groups: "{{ editors_group }}"
     shell: /usr/sbin/nologin
-    create_home: false
+    create_home: true
+
+- name: Set ana authorized SSH keys
+  authorized_key:
+    user: "{{ ana_user }}"
+    state: present
+    key: "{{ vault_ana_authorized_keys | join('\n') }}"
+    exclusive: true
 
 - name: Set root authorized SSH keys
   authorized_key:
     user: root
     state: present
-    key: "{{ item }}"
+    key: "{{ vault_root_authorized_keys | join('\n') }}"
     exclusive: true
-  loop: "{{ vault_root_authorized_keys }}"
 
 - name: Harden SSH - disable password auth, set port
   lineinfile:
@@ -105,9 +115,15 @@
     line: "{{ item.line }}"
     state: present
   loop:
-    - { regexp: '^#?Port ', line: "Port {{ ssh_port }}" }
-    - { regexp: '^#?PasswordAuthentication ', line: 'PasswordAuthentication no' }
-    - { regexp: '^#?PermitRootLogin ', line: 'PermitRootLogin prohibit-password' }
+    - { regexp: "^#?Port ", line: "Port {{ ssh_port }}" }
+    - {
+        regexp: "^#?PasswordAuthentication ",
+        line: "PasswordAuthentication no",
+      }
+    - {
+        regexp: "^#?PermitRootLogin ",
+        line: "PermitRootLogin prohibit-password",
+      }
   notify: restart sshd
 
 - name: Create deploy keys directory

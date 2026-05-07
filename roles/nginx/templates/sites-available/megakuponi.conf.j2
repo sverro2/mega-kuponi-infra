@@ -48,7 +48,8 @@ server {
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 }
 
-# Disabled domains - return 404
+{% if nginx_disabled_domains %}
+# Disabled domains - return 410 Gone
 server {
     server_name {% for domain in nginx_disabled_domains %}{{ domain }} www.{{ domain }} {% endfor %};
 
@@ -61,8 +62,9 @@ server {
     include             /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
-    return 404;
+    return 410;
 }
+{% endif %}
 
 # HTTP -> HTTPS redirect for all domains
 server {

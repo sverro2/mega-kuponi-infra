@@ -11,12 +11,14 @@ For a full description of the server architecture see [`current-config/server-de
 On your local machine:
 
 ```bash
-sudo dnf install ansible   # Fedora
-# or: sudo apt install ansible
+sudo dnf install ansible sshpass   # Fedora
+# or: sudo apt install ansible sshpass
 
 # Install required Ansible collections (one-time)
 ansible-galaxy collection install -r requirements.yml
 ```
+
+> `sshpass` is required for the fresh-server bootstrap (the `--ask-pass` flag won't work without it).
 
 On the server: a fresh Ubuntu 24.04 VPS with root SSH access.
 
@@ -88,6 +90,8 @@ ansible-playbook playbooks/site.yml --ask-vault-pass
 ```bash
 ansible-playbook -i inventory/test.yml playbooks/site.yml --ask-vault-pass
 ```
+
+> **Fresh server note:** A brand-new Ubuntu VPS has SSH on port 22 with password auth. Add `--ask-pass -e ansible_port=22` for this first run only. The playbook installs your key, disables password auth, and moves SSH to port 6699 — the handler fires at the very end, so the connection stays stable throughout. Subsequent runs need no extra flags.
 
 This installs and configures everything: users, firewall, nginx, PostgreSQL, Redis, fail2ban, certbot timer, backup timer, systemd services. The services will fail to start at this point — that is expected, the binaries don't exist yet.
 

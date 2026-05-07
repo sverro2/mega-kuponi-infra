@@ -3,6 +3,44 @@
 # Certificates are obtained per-domain after nginx is configured.
 # Auto-renewal is handled by the certbot systemd timer installed with the package.
 
+# These placeholders let nginx start before certbot has run.
+# Certbot overwrites them with real content on first certificate issuance.
+
+- name: Create letsencrypt directory structure
+  file:
+    path: /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}
+    state: directory
+    mode: "0755"
+
+- name: Check placeholder certificate
+  stat:
+    path: /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem
+  register: cert_placeholder_stat
+
+- name: Generate placeholder self-signed certificate
+  command: >
+    openssl req -x509 -nodes -newkey rsa:2048 -days 1 -subj '/CN=placeholder'
+    -keyout /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/privkey.pem
+    -out /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem
+  when: not cert_placeholder_stat.stat.exists or cert_placeholder_stat.stat.size == 0
+
+- name: Check DH params file
+  stat:
+    path: /etc/letsencrypt/ssl-dhparams.pem
+  register: dhparams_stat
+
+- name: Generate placeholder DH params
+  command: openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 2048
+  when: not dhparams_stat.stat.exists or dhparams_stat.stat.size == 0
+
+- name: Create placeholder options-ssl-nginx.conf
+  file:
+    path: /etc/letsencrypt/options-ssl-nginx.conf
+    state: touch
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve
+
 - name: Ensure certbot renewal timer is enabled
   systemd:
     name: certbot.timer

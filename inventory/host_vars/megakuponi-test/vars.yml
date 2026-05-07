@@ -1,4 +1,5 @@
 restic_repo: "{{ restic_repo_base }}/test"
+restore_ssl_from_backup: false
 
 nginx_active_domains:
   - megacupones.com.bo

@@ -10,6 +10,8 @@ editors_group: editors
 editors_gid: 1002
 
 ssh_port: 6699
+server_timezone: Europe/Amsterdam
+rust_version: "1.93.1"
 
 app_backend_repo: git@github.com:sverro2/mega-kuponi.git
 app_admin_repo: git@github.com:sverro2/mega-kuponi-administration.git
@@ -21,7 +23,6 @@ app_admin_dir: "{{ app_source_dir }}/mega-kuponi-administration"
 app_deploy_dir: /var/www/application
 app_admin_deploy_dir: /var/www/admin-app
 app_resources_dir: /var/www/resources
-app_scripts_dir: /opt/megakuponi/scripts
 deploy_keys_dir: /etc/megakuponi/keys
 
 postgres_db: megakuponi
@@ -35,6 +36,7 @@ postgres_content_user_writable_tables:
 restic_repo_base: "s3:hel1.your-objectstorage.com/megakuponibackup"
 restic_repo: "{{ restic_repo_base }}/production"
 restic_config_dir: /etc/restic
+restore_ssl_from_backup: true
 
 nginx_active_domains:
   - megacupones.cl

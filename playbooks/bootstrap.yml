@@ -27,6 +27,21 @@
     # 1. Clone source repositories
     # -------------------------------------------------------------------------
 
+    - name: Check if repos are already cloned
+      stat:
+        path: "{{ item }}/.git"
+      loop:
+        - "{{ app_backend_dir }}"
+        - "{{ app_admin_dir }}"
+      register: repo_stats
+
+    - name: Remove directories that are not git repos (leftover from failed runs)
+      file:
+        path: "{{ item.item }}"
+        state: absent
+      loop: "{{ repo_stats.results }}"
+      when: not item.stat.exists
+
     - name: Clone backend repo
       git:
         repo: "{{ app_backend_repo }}"
@@ -34,7 +49,6 @@
         version: main
         key_file: "{{ deploy_keys_dir }}/id-dev"
         accept_hostkey: true
-      become_user: "{{ ana_user }}"
 
     - name: Clone admin repo
       git:
@@ -43,7 +57,14 @@
         version: main
         key_file: "{{ deploy_keys_dir }}/id-dev-admin"
         accept_hostkey: true
-      become_user: "{{ ana_user }}"
+
+    - name: Deploy admin .env (needed for build)
+      template:
+        src: ../roles/app/templates/admin.env.j2
+        dest: "{{ app_admin_dir }}/.env"
+        owner: root
+        group: root
+        mode: "0644"
 
     # -------------------------------------------------------------------------
     # 2. Restore from backup (database, resources, and SSL certificates)
@@ -55,7 +76,7 @@
       file:
         path: /tmp/restic-restore
         state: directory
-        mode: "0700"
+        mode: "0755"
 
     - name: Restore database dump from backup
       command: >
@@ -68,6 +89,20 @@
         AWS_SECRET_ACCESS_KEY: "{{ vault_restic_aws_secret_key }}"
         RESTIC_PASSWORD: "{{ vault_restic_password }}"
 
+    - name: Stop backend service before database restore
+      systemd:
+        name: mega-kuponi
+        state: stopped
+      ignore_errors: true
+
+    - name: Drop existing database
+      command: dropdb --if-exists {{ postgres_db }}
+      become_user: postgres
+
+    - name: Create fresh database
+      command: createdb -E UTF8 {{ postgres_db }}
+      become_user: postgres
+
     - name: Restore database dump into PostgreSQL
       command: pg_restore -d {{ postgres_db }} /tmp/restic-restore/tmp/db.dump
       become_user: postgres
@@ -77,17 +112,28 @@
         path: /tmp/restic-restore
         state: absent
 
-    - name: Restore resources and SSL certificates from backup
+    - name: Restore resources from backup
       command: >
         restic restore latest
         --target /
         --include {{ app_resources_dir }}
+      environment:
+        RESTIC_REPOSITORY: "{{ restic_repo }}"
+        AWS_ACCESS_KEY_ID: "{{ vault_restic_aws_access_key }}"
+        AWS_SECRET_ACCESS_KEY: "{{ vault_restic_aws_secret_key }}"
+        RESTIC_PASSWORD: "{{ vault_restic_password }}"
+
+    - name: Restore SSL certificates from backup
+      command: >
+        restic restore latest
+        --target /
         --include /etc/letsencrypt
       environment:
         RESTIC_REPOSITORY: "{{ restic_repo }}"
         AWS_ACCESS_KEY_ID: "{{ vault_restic_aws_access_key }}"
         AWS_SECRET_ACCESS_KEY: "{{ vault_restic_aws_secret_key }}"
         RESTIC_PASSWORD: "{{ vault_restic_password }}"
+      when: restore_ssl_from_backup
 
     - name: Fix ownership on resources directory
       file:
@@ -100,21 +146,48 @@
     # 3. Obtain SSL certificates (only if not restored from backup)
     # -------------------------------------------------------------------------
 
-    - name: Check if certificate was restored from backup
-      stat:
-        path: "/etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem"
-      register: cert_stat
+    - name: Check if a valid Let's Encrypt certificate exists
+      command: >
+        openssl x509 -in /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem
+        -noout -issuer
+      register: cert_issuer
+      ignore_errors: true
+
+    - name: Stop nginx so certbot can bind to port 80
+      systemd:
+        name: nginx
+        state: stopped
+      when: cert_issuer.rc != 0 or "Let's Encrypt" not in cert_issuer.stdout
+
+    - name: Remove certbot live/archive/renewal entries so certbot creates certs under the expected name
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}
+        - /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}-0001
+        - /etc/letsencrypt/archive/{{ nginx_ssl_cert_domain }}
+        - /etc/letsencrypt/archive/{{ nginx_ssl_cert_domain }}-0001
+        - /etc/letsencrypt/renewal/{{ nginx_ssl_cert_domain }}.conf
+        - /etc/letsencrypt/renewal/{{ nginx_ssl_cert_domain }}-0001.conf
+      when: cert_issuer.rc != 0 or "Let's Encrypt" not in cert_issuer.stdout
 
     - name: Obtain Let's Encrypt certificates (fresh setup only)
       command: >
-        certbot --nginx --non-interactive --agree-tos
+        certbot certonly --standalone --non-interactive --agree-tos
         --email {{ admin_email }}
         {{ all_certbot_domains }}
-      when: not cert_stat.stat.exists
+      when: cert_issuer.rc != 0 or "Let's Encrypt" not in cert_issuer.stdout
+
+    - name: Start nginx with real certificates
+      systemd:
+        name: nginx
+        state: started
+      when: cert_issuer.rc != 0 or "Let's Encrypt" not in cert_issuer.stdout
 
     # -------------------------------------------------------------------------
     # 4. Build and deploy the applications
     # -------------------------------------------------------------------------
 
     - name: Build and deploy backend and admin panel
-      command: "{{ app_scripts_dir }}/update.sh --admin --skip-smoke-test"
+      command: /usr/local/bin/deploy --admin --skip-smoke-test

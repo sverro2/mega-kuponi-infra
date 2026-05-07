@@ -1,6 +1,6 @@
 #!/bin/bash
 # Grant database privileges to {{ postgres_content_user }}.
-# Run this after restoring the database: sudo {{ app_scripts_dir }}/grant-db-permissions.sh
+# Run this after restoring the database: sudo grant-db-permissions
 set -euo pipefail
 
 sudo -u postgres psql -d {{ postgres_db }} << 'EOF'

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Restore latest restic backup to /tmp/megakuponi-restore/
-# Run as: sudo {{ app_scripts_dir }}/restore.sh
+# Run as: sudo restore
 set -euo pipefail
 
 RESTORE_DIR=/tmp/megakuponi-restore
@@ -45,4 +45,4 @@ echo "To clean up afterwards:"
 echo "  rm -rf $RESTORE_DIR"
 echo
 echo "After restoring the database, re-apply ana's write permissions:"
-echo "  sudo {{ app_scripts_dir }}/grant-db-permissions.sh"
+echo "  sudo grant-db-permissions"

@@ -9,9 +9,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIR="$SCRIPT_DIR/config"
+CONFIG_DIR="/opt/megakuponi/ftl-validation/config"
 
 echo "=================================================="
 echo "  FTL Route Validation - Quick Test"
@@ -127,7 +125,7 @@ echo "=================================================="
 if [[ $total_failed -eq 0 ]]; then
     echo -e "${GREEN}✓ Quick test completed successfully!${NC}"
     echo ""
-    echo "Run ${BLUE}./run.sh${NC} for full validation of all domains and URLs"
+    echo "Run ${BLUE}smoke-test${NC} for full validation of all domains and URLs"
     exit 0
 else
     echo -e "${RED}✗ Quick test found issues${NC}"

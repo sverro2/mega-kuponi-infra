@@ -1,4 +1,22 @@
 ---
+- name: Ensure /etc/megakuponi directory exists
+  file:
+    path: /etc/megakuponi
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy mega-kuponi environment file
+  template:
+    src: mega-kuponi.env.j2
+    dest: /etc/megakuponi/app.env
+    owner: root
+    group: "{{ runner_user }}"
+    mode: "0640"
+  notify:
+    - restart mega-kuponi
+
 - name: Deploy mega-kuponi backend service
   template:
     src: mega-kuponi.service.j2
