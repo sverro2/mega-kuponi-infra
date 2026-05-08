@@ -8,4 +8,3 @@ nginx_active_domains:
 nginx_disabled_domains: []
 
 nginx_admin_domain: lasantadelahorro.com
-nginx_ssl_cert_domain: megacupones.com.bo

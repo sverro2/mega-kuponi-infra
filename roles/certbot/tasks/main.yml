@@ -1,28 +1,19 @@
 ---
-# Certbot is installed via common role (python3-certbot-nginx)
-# Certificates are obtained per-domain after nginx is configured.
-# Auto-renewal is handled by the certbot systemd timer installed with the package.
-
-# These placeholders let nginx start before certbot has run.
-# Certbot overwrites them with real content on first certificate issuance.
-
-- name: Create letsencrypt directory structure
+- name: Create letsencrypt directory structure per domain
   file:
-    path: /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}
+    path: /etc/letsencrypt/live/{{ item }}
     state: directory
     mode: "0755"
+  loop: "{{ nginx_active_domains + nginx_disabled_domains }}"
 
-- name: Check placeholder certificate
-  stat:
-    path: /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem
-  register: cert_placeholder_stat
-
-- name: Generate placeholder self-signed certificate
+- name: Generate placeholder self-signed certificate per domain
   command: >
     openssl req -x509 -nodes -newkey rsa:2048 -days 1 -subj '/CN=placeholder'
-    -keyout /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/privkey.pem
-    -out /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem
-  when: not cert_placeholder_stat.stat.exists or cert_placeholder_stat.stat.size == 0
+    -keyout /etc/letsencrypt/live/{{ item }}/privkey.pem
+    -out /etc/letsencrypt/live/{{ item }}/fullchain.pem
+  args:
+    creates: /etc/letsencrypt/live/{{ item }}/fullchain.pem
+  loop: "{{ nginx_active_domains + nginx_disabled_domains }}"
 
 - name: Check DH params file
   stat:

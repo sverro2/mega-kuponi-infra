@@ -13,14 +13,6 @@
   hosts: all
   become: true
 
-  vars:
-    all_certbot_domains: >-
-      {{
-        (nginx_active_domains + nginx_disabled_domains)
-        | map('regex_replace', '^(.*)$', '-d \1 -d www.\1')
-        | join(' ')
-      }}
-
   tasks:
 
     # -------------------------------------------------------------------------
@@ -146,44 +138,40 @@
     # 3. Obtain SSL certificates (only if not restored from backup)
     # -------------------------------------------------------------------------
 
-    - name: Check if a valid Let's Encrypt certificate exists
+    - name: Check if a valid Let's Encrypt certificate exists for first domain
       command: >
-        openssl x509 -in /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem
+        openssl x509 -in /etc/letsencrypt/live/{{ nginx_active_domains | first }}/fullchain.pem
         -noout -issuer
-      register: cert_issuer
+      register: cert_check
       ignore_errors: true
+      changed_when: false
 
     - name: Stop nginx so certbot can bind to port 80
       systemd:
         name: nginx
         state: stopped
-      when: cert_issuer.rc != 0 or "Let's Encrypt" not in cert_issuer.stdout
+      when: not restore_ssl_from_backup and (cert_check.rc != 0 or "Let's Encrypt" not in cert_check.stdout)
 
-    - name: Remove certbot live/archive/renewal entries so certbot creates certs under the expected name
+    - name: Remove placeholder certificate directories so certbot uses expected names
       file:
-        path: "{{ item }}"
+        path: /etc/letsencrypt/live/{{ item }}
         state: absent
-      loop:
-        - /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}
-        - /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}-0001
-        - /etc/letsencrypt/archive/{{ nginx_ssl_cert_domain }}
-        - /etc/letsencrypt/archive/{{ nginx_ssl_cert_domain }}-0001
-        - /etc/letsencrypt/renewal/{{ nginx_ssl_cert_domain }}.conf
-        - /etc/letsencrypt/renewal/{{ nginx_ssl_cert_domain }}-0001.conf
-      when: cert_issuer.rc != 0 or "Let's Encrypt" not in cert_issuer.stdout
+      loop: "{{ nginx_active_domains + nginx_disabled_domains }}"
+      when: not restore_ssl_from_backup and (cert_check.rc != 0 or "Let's Encrypt" not in cert_check.stdout)
 
-    - name: Obtain Let's Encrypt certificates (fresh setup only)
+    - name: Obtain Let's Encrypt certificate per domain
       command: >
         certbot certonly --standalone --non-interactive --agree-tos
         --email {{ admin_email }}
-        {{ all_certbot_domains }}
-      when: cert_issuer.rc != 0 or "Let's Encrypt" not in cert_issuer.stdout
+        -d {{ item }} -d www.{{ item }}
+      loop: "{{ nginx_active_domains + nginx_disabled_domains }}"
+      when: not restore_ssl_from_backup and (cert_check.rc != 0 or "Let's Encrypt" not in cert_check.stdout)
 
     - name: Start nginx with real certificates
       systemd:
         name: nginx
         state: started
-      when: cert_issuer.rc != 0 or "Let's Encrypt" not in cert_issuer.stdout
+      when: not restore_ssl_from_backup and (cert_check.rc != 0 or "Let's Encrypt" not in cert_check.stdout)
 
     # -------------------------------------------------------------------------
     # 4. Build and deploy the applications

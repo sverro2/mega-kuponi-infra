@@ -58,7 +58,6 @@ nginx_disabled_domains:
   - megacupones.com.bo
 
 nginx_admin_domain: animamedia.nl
-nginx_ssl_cert_domain: animamedia.nl
 nginx_backend_port: 8000
 nginx_admin_port: 3000
 
@@ -66,7 +65,7 @@ admin_email: brettschneider.sven@gmail.com
 
 swap_size: 8G
 
-# Automatic security updates and monthly reboot
+# Automatic security updates and reboots
 auto_updates_enabled: true
 auto_reboot_enabled: true
 auto_reboot_day: 1      # day of month (1 = first day)

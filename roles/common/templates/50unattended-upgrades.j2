@@ -8,8 +8,6 @@ Unattended-Upgrade::Allowed-Origins {
 Unattended-Upgrade::Package-Blacklist {
 };
 
-// Automatically reboot if a restart is required (e.g. kernel update)
-// Controlled via auto_reboot_enabled in vars.yml
 Unattended-Upgrade::Automatic-Reboot "{{ 'true' if auto_reboot_enabled else 'false' }}";
 Unattended-Upgrade::Automatic-Reboot-Time "{{ auto_reboot_time }}";
 

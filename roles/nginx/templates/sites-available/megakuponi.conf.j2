@@ -3,12 +3,11 @@ map $host $backend {
     www.{{ nginx_admin_domain }} http://127.0.0.1:{{ nginx_admin_port }};
 }
 
-# Active domains - HTTPS
+{% for domain in nginx_active_domains %}
+# {{ domain }}
 server {
     root /var/www;
-
-    server_name {% for domain in nginx_active_domains %}www.{{ domain }} {% endfor %};
-
+    server_name {{ domain }} www.{{ domain }};
 
     limit_req_status 429;
 
@@ -40,39 +39,47 @@ server {
         proxy_pass $backend;
     }
 
+{% if loop.first %}
     listen [::]:443 ssl ipv6only=on http2;
+{% else %}
+    listen [::]:443 ssl http2;
+{% endif %}
     listen 443 ssl http2;
-    ssl_certificate     /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/{{ domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
     include             /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 }
+{% endfor %}
 
 {% if nginx_disabled_domains %}
-# Disabled domains - return 410 Gone
+{% for domain in nginx_disabled_domains %}
+# {{ domain }} - disabled
 server {
-    server_name {% for domain in nginx_disabled_domains %}{{ domain }} www.{{ domain }} {% endfor %};
-
+    server_name {{ domain }} www.{{ domain }};
 
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
 
-    ssl_certificate     /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ nginx_ssl_cert_domain }}/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/{{ domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
     include             /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
     return 410;
 }
+{% endfor %}
 {% endif %}
 
 # HTTP -> HTTPS redirect for all domains
 server {
     server_name {% for domain in nginx_active_domains + nginx_disabled_domains %}{{ domain }} www.{{ domain }} {% endfor %};
 
-
     listen 80;
     listen [::]:80;
 
+    if ($host !~* ^www\.) {
+        return 301 https://www.$host$request_uri;
+    }
     return 301 https://$host$request_uri;
 }
