@@ -1,9 +1,0 @@
-[Unit]
-Description=Monthly server reboot on day {{ auto_reboot_day }} at {{ auto_reboot_time }}
-
-[Timer]
-OnCalendar=*-*-{{ '%02d' | format(auto_reboot_day) }} {{ auto_reboot_time }}:00
-Persistent=true
-
-[Install]
-WantedBy=timers.target

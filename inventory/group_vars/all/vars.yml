@@ -29,8 +29,20 @@ postgres_db: megakuponi
 postgres_app_user: dev
 postgres_content_user: ana
 postgres_content_user_writable_tables:
+  - blog_author
+  - blog_articles
   - categories
+  - coupon_code_lists
+  - coupon_lists
+  - coupon_planner
+  - custom_pages
+  - footer_shops
+  - home_top_shops
+  - menu_shops
+  - shops
+  - specials
   - subcategories
+  - top_categories
   - users
 
 restic_repo_base: "s3:hel1.your-objectstorage.com/megakuponibackup"
@@ -68,5 +80,4 @@ swap_size: 8G
 # Automatic security updates and reboots
 auto_updates_enabled: true
 auto_reboot_enabled: true
-auto_reboot_day: 1      # day of month (1 = first day)
 auto_reboot_time: "03:30"  # time of reboot (after backup at 03:00)

@@ -54,6 +54,19 @@
     state: present
   changed_when: false
 
+- name: Check if writable tables exist
+  become_user: postgres
+  postgresql_query:
+    login_db: "{{ postgres_db }}"
+    query: >
+      SELECT COUNT(*) FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name = ANY(%s)
+    positional_args:
+      - "{{ postgres_content_user_writable_tables }}"
+  register: writable_tables_check
+  changed_when: false
+
 - name: Grant write access on specific tables to ana
   become_user: postgres
   postgresql_privs:
@@ -63,6 +76,7 @@
     privs: INSERT,UPDATE,DELETE
     state: present
   changed_when: false
+  when: writable_tables_check.query_result[0].count | int > 0
 
 - name: Grant SELECT on future tables to ana (alter default privileges)
   become_user: postgres

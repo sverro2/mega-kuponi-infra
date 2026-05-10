@@ -166,26 +166,18 @@
     group: root
     mode: "0644"
 
-- name: Deploy monthly reboot systemd service
-  template:
-    src: monthly-reboot.service.j2
-    dest: /etc/systemd/system/monthly-reboot.service
-    owner: root
-    group: root
-    mode: "0644"
-  notify: reload systemd
-
-- name: Deploy monthly reboot systemd timer
-  template:
-    src: monthly-reboot.timer.j2
-    dest: /etc/systemd/system/monthly-reboot.timer
-    owner: root
-    group: root
-    mode: "0644"
-  notify: reload systemd
-
-- name: Manage monthly reboot timer state
+- name: Disable and remove monthly reboot timer
   systemd:
     name: monthly-reboot.timer
-    enabled: "{{ auto_reboot_enabled }}"
-    state: "{{ 'started' if auto_reboot_enabled else 'stopped' }}"
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Remove monthly reboot systemd files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/system/monthly-reboot.timer
+    - /etc/systemd/system/monthly-reboot.service
+  notify: reload systemd

@@ -21,7 +21,10 @@ ansible-playbook -i inventory/test.yml playbooks/site.yml --ask-vault-pass
 # Bootstrap a fresh server (one-time, after site.yml)
 ansible-playbook playbooks/bootstrap.yml --ask-vault-pass
 
-# First run on a brand-new server (SSH still on port 22, password auth)
+# First run on a brand-new server (SSH still on port 22, key pair already set up)
+ansible-playbook playbooks/site.yml --ask-vault-pass -e ansible_port=22
+
+# First run on a brand-new server (SSH still on port 22, password auth — no key pair yet)
 ansible-playbook playbooks/site.yml --ask-vault-pass --ask-pass -e ansible_port=22
 
 # Target a single role
@@ -66,8 +69,9 @@ To avoid typing the password every run, set `vault_password_file = .vault_pass` 
 **Fresh server:**
 1. Set IP in `inventory/hosts.yml`
 2. `site.yml` (services will fail to start — binaries don't exist yet; that's expected)
-3. `bootstrap.yml` (clones repos, restores backup, gets SSL certs, builds & starts apps)
-4. `site.yml` again to ensure services are up
+3. **Reboot the server manually** — Ubuntu's `ssh.socket` keeps holding port 22 until reboot; after `site.yml` changes the SSH port to 6699 you won't be able to reconnect until the server restarts
+4. `bootstrap.yml` (clones repos, restores backup, gets SSL certs, builds & starts apps)
+5. `site.yml` again to ensure services are up
 
 **Migration from old server:**
 - Run `bootstrap.yml` with `-e restic_repo="{{ restic_repo_base }}/production"` to pull the production backup onto the new server
