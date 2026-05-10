@@ -96,7 +96,7 @@ if [ "$DEPLOY_ADMIN" = true ]; then
 
     systemctl stop mega-kuponi-admin.service
 
-    cp -R build/ {{ app_admin_deploy_dir }}/build
+    rsync -a --delete build/ {{ app_admin_deploy_dir }}/build/
     cp package.json {{ app_admin_deploy_dir }}/package.json
     cp package-lock.json {{ app_admin_deploy_dir }}/package-lock.json
 
